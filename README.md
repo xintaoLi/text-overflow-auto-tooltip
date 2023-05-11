@@ -20,6 +20,20 @@ TargetNodeConfig = {
 };
 ```
 
+### 使用
+```javascript
+  import SetTextOverflowTooltip from './src/index.ts';
+  SetTextOverflowTooltip({});
+```
+
+### 引入样式
+```javascript
+  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/index.scss" />
+  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-dark.scss" />
+  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-light.scss" />
+  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-error.scss" />
+```
+
 ### 示例
 ```javascript
       <div class="row">
