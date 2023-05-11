@@ -22,16 +22,13 @@ TargetNodeConfig = {
 
 ### 使用
 ```javascript
-  import SetTextOverflowTooltip from './src/index.ts';
-  SetTextOverflowTooltip({});
+import setTextOverflowTooltip from '@tencent/bk-text-overflow-tooltip';
+SetTextOverflowTooltip({});
 ```
 
 ### 引入样式
 ```javascript
-  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/index.scss" />
-  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-dark.scss" />
-  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-light.scss" />
-  <link type="text/css" rel="stylesheet" href="./src//tippy-theme/bk-error.scss" />
+  import '@tencent/bk-text-overflow-tooltip/dist.style.css';
 ```
 
 ### 示例
