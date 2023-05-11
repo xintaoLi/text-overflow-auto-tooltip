@@ -11,13 +11,15 @@ declare global {
 export interface ITextoverflowOption {
   target: HTMLElement | string;
   showTooltip?: boolean,
-  prefix?: string
+  prefix?: string,
+  delay?: number
 }
 
 const defaultOption: ITextoverflowOption = {
   target: document.body,
   showTooltip: true,
-  prefix: 'bk-txt-overflow'
+  prefix: 'bk-txt-overflow',
+  delay: 500
 };
 
 function resolveTarget(target?: HTMLElement | string) {
@@ -45,13 +47,16 @@ const defaultTargetNodeConfig = {
   tooltip_target: '',
   tooltip_disabled: true,
   tooltip_theme: 'bk-dark',
-  tooltip_insert: false
+  tooltip_insert: false,
+  tooltip_delay: null,
+  system_title: false,
 };
 
 export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
   let tippyInstance: Instance<Props> | null = null;
   let targetNode: HTMLElement | Element | null;
   let targetConfig = {...defaultTargetNodeConfig};
+  let showPopInstanTimer: number;
   const hanldeMouseEnter = debounce((evt) => {
     const x = evt.clientX;
     const y = evt.clientY;
@@ -65,7 +70,22 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
       return;
     }
 
-    if (hasOverflowEllipsis(targetNode as HTMLElement)) {
+    const isOverflow = () => {
+      const checkList = [
+        ['textOverflow', 'ellipsis'],
+        ['overflow', 'hidden'],
+        ['whiteSpace', 'nowrap']
+      ];
+
+      if (targetNode) {
+        const style = window.getComputedStyle(targetNode);
+        return checkList.every(item => style[item[0]] === item[1]);
+      }
+
+      return false;
+    }
+
+    if (hasOverflowEllipsis(targetNode as HTMLElement) && isOverflow()) {
       showTooltip();
     } else {
       if (targetConfig.tooltip_insert) {
@@ -77,16 +97,17 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
   }, 300);
 
   const handleMouseleave = () => {
+    showPopInstanTimer && clearTimeout(showPopInstanTimer);
     tippyInstance?.hide();
     targetNode?.removeEventListener('mouseleave', handleMouseleave);
     Object.assign(targetConfig, {...defaultTargetNodeConfig});
   }
 
-  const resolveTargetAttribute = (attributeName: string, defaultValue: boolean | string | null = null) => {
+  const resolveTargetAttribute = (attributeName: string, defaultValue: boolean | string | null | number = null) => {
     const attrName = `${options.prefix}-${attributeName}`;
     if (targetNode?.hasAttribute(attrName)) {
       const value = targetNode?.getAttribute(`${options.prefix}-${attributeName}`);
-      if (value === null) {
+      if (value === null || value === '') {
         return defaultValue;
       }
     
@@ -113,6 +134,8 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
       tooltip_disabled: resolveTargetAttribute('disabled', true) || targetNode?.closest(`[${options.prefix}-disabled]`),
       tooltip_theme: resolveTargetAttribute('theme', 'bk-dark'),
       tooltip_insert: resolveTargetAttribute('insert', false),
+      tooltip_delay: resolveTargetAttribute('delay', options.delay),
+      system_title: resolveTargetAttribute('system', true),
     });
   }
 
@@ -120,16 +143,16 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
     // 需要显示的内容
     // 如果设置了data-show-title优先展示，否则展示当前子元素内容
     let targetValue: string | Element | undefined | null;
-    const { tooltip_title, tooltip_target, tooltip_disabled, tooltip_theme } = targetConfig;
+    const { tooltip_title, tooltip_target, tooltip_disabled, tooltip_theme, tooltip_delay, system_title } = targetConfig;
     if (tooltip_disabled) {
       return;
     }
 
-    if (options.showTooltip) {
+    if (options.showTooltip && !/true/.test(`${system_title}`)) {
       //指定tooltip target
       // 这里会将target当做querySelector进行查询
       if (typeof tooltip_target === 'string') {
-        targetValue = targetNode?.closest(tooltip_target);
+        targetValue = document.querySelector(tooltip_target)?.innerHTML;
       } else {
         targetValue = tooltip_title as string
           || ((targetNode as HTMLInputElement).value
@@ -137,18 +160,21 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
       }
 
       targetNode?.addEventListener('mouseleave', handleMouseleave);
-      tippyInstance = tippy((targetNode as HTMLElement), {
-        content: targetValue || 'null',
-        allowHTML: true,
-        arrow: true,
-        theme: tooltip_theme || 'bk-dark',
-        trigger: 'manual',
-        onHidden: () => {
-          tippyInstance = null;
-        }
-      });
-      tippyInstance.show();
-
+      showPopInstanTimer && clearTimeout(showPopInstanTimer);
+      tippyInstance?.destroy();
+      showPopInstanTimer = setTimeout(() => {
+        tippyInstance = tippy((targetNode as HTMLElement), {
+          content: targetValue || 'null',
+          allowHTML: true,
+          arrow: true,
+          theme: tooltip_theme || 'bk-dark',
+          trigger: 'manual',
+          onHidden: () => {
+            tippyInstance = null;
+          }
+        });
+        tippyInstance.show();
+      }, Number(tooltip_delay));
     } else {
       targetValue = tooltip_title as string
         || ((targetNode as HTMLInputElement).value
