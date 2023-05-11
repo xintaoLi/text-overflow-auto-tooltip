@@ -1,5 +1,6 @@
 
-import { debounce } from 'lodash';
+import { debounce, merge } from 'lodash';
+import tippy, { Instance, Props } from 'tippy.js';
 
 declare global {
   interface Window {
@@ -9,38 +10,161 @@ declare global {
 
 export interface ITextoverflowOption {
   target: HTMLElement | string;
+  showTooltip?: boolean,
+  prefix?: string
 }
 
-export const setTextOverflowTooltip = (options) => {
+const defaultOption: ITextoverflowOption = {
+  target: document.body,
+  showTooltip: true,
+  prefix: 'bk-txt-overflow'
+};
+
+function resolveTarget(target?: HTMLElement | string) {
+  if (!target) {
+    return document.body;
+  }
+
+  if (target instanceof HTMLElement) {
+    return target;
+  }
+
+  if (typeof target === 'string') {
+    return document.querySelector(target);
+  }
+
+  return target;
+}
+
+const resolveOptions = (option?: ITextoverflowOption) => {
+  return merge(option, defaultOption || {});
+}
+
+const defaultTargetNodeConfig = {
+  tooltip_title: '',
+  tooltip_target: '',
+  tooltip_disabled: true,
+  tooltip_theme: 'bk-dark',
+  tooltip_insert: false
+};
+
+export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
+  let tippyInstance: Instance<Props> | null = null;
+  let targetNode: HTMLElement | Element | null;
+  let targetConfig = {...defaultTargetNodeConfig};
   const hanldeMouseEnter = debounce((evt) => {
     const x = evt.clientX;
     const y = evt.clientY;
-    const targetNode = document.elementFromPoint(x, y);
-    if (!targetNode || targetNode.hasAttribute('data-disable-title')) {
+    targetNode = document.elementFromPoint(x, y);
+
+    if (targetNode) {
+      resolveTargetConfig();
+    }
+    const { tooltip_disabled } = targetConfig;
+    if (!targetNode || tooltip_disabled) {
       return;
     }
 
-    const hasShowTitle = targetNode.hasAttribute('data-show-title');
-    if (hasShowTitle || targetNode && !targetNode.lastElementChild) {
-      const targetValue = hasShowTitle ? targetNode.getAttribute('data-show-title') : ((targetNode as HTMLInputElement).value || targetNode.innerHTML);
-      maybeShowTooltip((evt.target as HTMLElement), targetValue || '');
+    if (hasOverflowEllipsis(targetNode as HTMLElement)) {
+      showTooltip();
+    } else {
+      if (targetConfig.tooltip_insert) {
+        targetNode.removeAttribute('title');
+        removeNodeAttribute('insert');
+        resolveTargetConfig();
+      }
     }
   }, 300);
 
-  document.querySelector("body")?.addEventListener('mouseover', hanldeMouseEnter);
+  const handleMouseleave = () => {
+    tippyInstance?.hide();
+    targetNode?.removeEventListener('mouseleave', handleMouseleave);
+    Object.assign(targetConfig, {...defaultTargetNodeConfig});
+  }
+
+  const resolveTargetAttribute = (attributeName: string, defaultValue: boolean | string | null = null) => {
+    const attrName = `${options.prefix}-${attributeName}`;
+    if (targetNode?.hasAttribute(attrName)) {
+      const value = targetNode?.getAttribute(`${options.prefix}-${attributeName}`);
+      if (value === null) {
+        return defaultValue;
+      }
+    
+      return value;
+    }
+    
+    return undefined;
+  }
+
+  const setTargetNodeAttribute = (name: string, value: string) => {
+    const attrName = `${options.prefix}-${name}`;
+    targetNode?.setAttribute(attrName, value);
+  }
+
+  const removeNodeAttribute = (name: string) => {
+    const attrName = `${options.prefix}-${name}`;
+    targetNode?.removeAttribute(attrName);
+  }
+  
+  const resolveTargetConfig = () => {
+    Object.assign(targetConfig, {
+      tooltip_title: resolveTargetAttribute('title'),
+      tooltip_target: resolveTargetAttribute('target'),
+      tooltip_disabled: resolveTargetAttribute('disabled', true) || targetNode?.closest(`[${options.prefix}-disabled]`),
+      tooltip_theme: resolveTargetAttribute('theme', 'bk-dark'),
+      tooltip_insert: resolveTargetAttribute('insert', false),
+    });
+  }
+
+  const showTooltip = () => {
+    // 需要显示的内容
+    // 如果设置了data-show-title优先展示，否则展示当前子元素内容
+    let targetValue: string | Element | undefined | null;
+    const { tooltip_title, tooltip_target, tooltip_disabled, tooltip_theme } = targetConfig;
+    if (tooltip_disabled) {
+      return;
+    }
+
+    if (options.showTooltip) {
+      //指定tooltip target
+      // 这里会将target当做querySelector进行查询
+      if (typeof tooltip_target === 'string') {
+        targetValue = targetNode?.closest(tooltip_target);
+      } else {
+        targetValue = tooltip_title as string
+          || ((targetNode as HTMLInputElement).value
+          || targetNode?.innerHTML);
+      }
+
+      targetNode?.addEventListener('mouseleave', handleMouseleave);
+      tippyInstance = tippy((targetNode as HTMLElement), {
+        content: targetValue || 'null',
+        allowHTML: true,
+        arrow: true,
+        theme: tooltip_theme || 'bk-dark',
+        trigger: 'manual',
+        onHidden: () => {
+          tippyInstance = null;
+        }
+      });
+      tippyInstance.show();
+
+    } else {
+      targetValue = tooltip_title as string
+        || ((targetNode as HTMLInputElement).value
+        || (targetNode as HTMLElement)?.innerText);
+
+      if (!targetNode?.hasAttribute('title')) {
+        targetNode?.setAttribute('title', targetValue);
+        setTargetNodeAttribute('insert', '1');
+        resolveTargetConfig();
+      }
+    }
+  }
+
+  resolveTarget(options.target)?.addEventListener('mouseover', hanldeMouseEnter);
 }
 
-/**
- * Sets the `title` attribute in the event's element target, when the text
- * content is clipped due to CSS overflow, as in showing `...`.
- */
-export function maybeShowTooltip(target: HTMLElement, title: string) {
-  if (hasOverflowEllipsis(target)) {
-    target.setAttribute('title', title);
-  } else {
-    target.removeAttribute('title');
-  }
-}
 
 /**
  * Whether the text content is clipped due to CSS overflow, as in showing `...`.
@@ -62,8 +186,7 @@ export function hasOverflowEllipsis(element: HTMLElement) {
     return element.offsetWidth < window.$TEXT_OVERFLOW_POS.offsetWidth;
   }
 
-  return element.offsetWidth < element.scrollWidth ||
-      element.offsetHeight < element.scrollHeight;
+  return element.offsetWidth < element.scrollWidth;
 }
 
 export function copyCssStyleToTargetNode (sourceNode: HTMLElement, targetNode: HTMLElement, propertyList: string[] = []) {
@@ -79,13 +202,16 @@ export function copyCssStyleToTargetNode (sourceNode: HTMLElement, targetNode: H
   } else {
       const cssText = Object.values(styles).reduce(
           (css, propertyName) =>
-              `${css}${propertyName}:${styles.getPropertyValue(propertyName)};`
+              `${css}${propertyName}:${styles.getPropertyValue(
+                  propertyName
+              )};`
       );
 
-      targetNode.style.cssText = cssText;
+      targetNode.style.cssText = cssText
   }
 }
 
+
 export default (options: ITextoverflowOption) => {
-  setTextOverflowTooltip({});
+  setTextOverflowTooltip(resolveOptions(options));
 }
