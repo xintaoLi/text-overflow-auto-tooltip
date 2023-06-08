@@ -197,6 +197,7 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
 function replaceNodeAttribute(source: string, target: string, node?: HTMLElement | null) {
   if (node?.hasAttribute(source)) {
     node.setAttribute(target, `${node.getAttribute(source)}`);
+    node.removeAttribute(source);
   }  
 }
 
