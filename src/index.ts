@@ -54,7 +54,7 @@ const defaultTargetNodeConfig = {
 
 export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
   let tippyInstance: Instance<Props> | null = null;
-  let targetNode: HTMLElement | Element | null;
+  let targetNode: HTMLElement | Element | undefined | null;
   let targetConfig = {...defaultTargetNodeConfig};
   let showPopInstanTimer: number;
   const hanldeMouseEnter = debounce((evt) => {
@@ -171,8 +171,11 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
           trigger: 'manual',
           onHidden: () => {
             tippyInstance = null;
+            replaceNodeAttribute('data-title', 'title', targetNode as HTMLElement);
           }
         });
+        
+        replaceNodeAttribute('title', 'data-title', targetNode as HTMLElement);
         tippyInstance.show();
       }, Number(tooltip_delay));
     } else {
@@ -189,6 +192,12 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
   }
 
   resolveTarget(options.target)?.addEventListener('mouseover', hanldeMouseEnter);
+}
+
+function replaceNodeAttribute(source: string, target: string, node?: HTMLElement | null) {
+  if (node?.hasAttribute(source)) {
+    node.setAttribute(target, `${node.getAttribute(source)}`);
+  }  
 }
 
 
