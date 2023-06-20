@@ -12,13 +12,15 @@ export interface ITextoverflowOption {
   target: HTMLElement | string;
   showTooltip?: boolean,
   prefix?: string,
-  delay?: number
+  delay?: number,
+  contentAttributes?: string[]
 }
 
 const defaultOption: ITextoverflowOption = {
   target: document.body,
   showTooltip: true,
   prefix: 'bk-txt-overflow',
+  contentAttributes: ['value', 'title', 'innerHTML'],
   delay: 500
 };
 
@@ -139,6 +141,36 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
     });
   }
 
+  const getContent = (target: HTMLElement) => {
+    const { tooltip_title, tooltip_target } = targetConfig;
+
+    //指定tooltip target
+    // 这里会将target当做querySelector进行查询
+    if (typeof tooltip_target === 'string') {
+      return document.querySelector(tooltip_target)?.innerHTML;
+    } else {
+      if (Array.isArray(options.contentAttributes)) {
+        let i = 0;
+        let result = tooltip_title;
+        while(i < options.contentAttributes.length) {
+          const attr = options.contentAttributes[i];
+          if (target[attr] !== undefined) {
+            result = target[attr];
+          }
+          
+          if (target.hasAttribute(attr)) {
+            result = `${target.getAttribute(attr)}`;
+            break;
+          }
+
+          i++;
+        }
+
+        return result;
+      };
+    }
+  }
+
   const showTooltip = () => {
     // 需要显示的内容
     // 如果设置了data-show-title优先展示，否则展示当前子元素内容
@@ -149,16 +181,7 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
     }
 
     if (options.showTooltip && !/true/.test(`${system_title}`)) {
-      //指定tooltip target
-      // 这里会将target当做querySelector进行查询
-      if (typeof tooltip_target === 'string') {
-        targetValue = document.querySelector(tooltip_target)?.innerHTML;
-      } else {
-        targetValue = tooltip_title as string
-          || ((targetNode as HTMLInputElement).value
-          || targetNode?.innerHTML);
-      }
-
+      targetValue = getContent(targetNode as HTMLElement);
       targetNode?.addEventListener('mouseleave', handleMouseleave);
       showPopInstanTimer && clearTimeout(showPopInstanTimer);
       tippyInstance?.destroy();
@@ -167,8 +190,11 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
           content: targetValue || 'null',
           allowHTML: true,
           arrow: true,
-          theme: tooltip_theme || 'bk-dark',
+          theme: `${tooltip_theme || 'bk-dark'}`,
           trigger: 'manual',
+          onShow: (instance) => {
+            instance.popper?.classList.add('bk-text-overflow-popper')
+          },
           onHidden: () => {
             tippyInstance = null;
             replaceNodeAttribute('data-title', 'title', targetNode as HTMLElement);
