@@ -41,7 +41,7 @@ function resolveTarget(target?: HTMLElement | string) {
 }
 
 const resolveOptions = (option?: ITextoverflowOption) => {
-  return merge(option, defaultOption || {});
+  return merge(defaultOption || {}, option);
 }
 
 const defaultTargetNodeConfig = {
