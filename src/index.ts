@@ -141,6 +141,8 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
   };
 
   const getContent = (target: HTMLElement) => {
+
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { tooltip_title, tooltip_target } = targetConfig;
 
     //指定tooltip target
@@ -174,7 +176,9 @@ export const setTextOverflowTooltip = (options: ITextoverflowOption) => {
     // 需要显示的内容
     // 如果设置了data-show-title优先展示，否则展示当前子元素内容
     let targetValue: string | Element | undefined | null;
-    const { tooltip_title, tooltip_target, tooltip_disabled, tooltip_theme, tooltip_delay, system_title } =
+
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { tooltip_title, tooltip_disabled, tooltip_theme, tooltip_delay, system_title } =
       targetConfig;
     if (tooltip_disabled) {
       return;
